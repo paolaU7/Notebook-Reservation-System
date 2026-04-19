@@ -1,0 +1,44 @@
+// ignore_for_file: public_member_api_docs
+
+import 'dart:io';
+import 'package:dart_frog/dart_frog.dart';
+import 'package:nrs_backend/repositories/teacher.repository.dart';
+
+Future<Response> onRequest(RequestContext context) async {
+  if (context.request.method != HttpMethod.post) {
+    return Response(statusCode: HttpStatus.methodNotAllowed);
+  }
+
+  final body  = await context.request.json() as Map<String, dynamic>;
+  final email = body['email']?.toString().trim();
+  final dni   = body['dni']?.toString().trim();
+
+  if (email == null || email.isEmpty || dni == null || dni.isEmpty) {
+    return Response.json(
+      statusCode: HttpStatus.badRequest,
+      body: {'error': 'Email y DNI son requeridos'},
+    );
+  }
+
+  try {
+    final teacher = await TeacherRepository().login(
+      email: email,
+      dni:   dni,
+    );
+
+    if (teacher == null) {
+      return Response.json(
+        statusCode: HttpStatus.unauthorized,
+        body: {'error': 'Email o DNI incorrectos'},
+      );
+    }
+
+    return Response.json(body: teacher.toJson());
+
+  } catch (e) {
+    return Response.json(
+      statusCode: HttpStatus.internalServerError,
+      body: {'error': 'Error interno: $e'},
+    );
+  }
+}
