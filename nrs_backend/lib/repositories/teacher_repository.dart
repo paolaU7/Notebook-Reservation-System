@@ -90,4 +90,32 @@ class TeacherRepository {
     );
     return result.map(Teacher.fromRow).toList();
   }
+
+  Future<Map<String, dynamic>?> loginForAuth({
+    required String email,
+    required String dni,
+  }) async {
+    final conn = await getConnection();
+    final result = await conn.execute(
+      r'''
+        SELECT id, email, password_hash
+        FROM teachers WHERE email = $1
+      ''',
+      parameters: [email],
+    );
+
+    if (result.isEmpty) return null;
+
+    final row          = result.first;
+    final passwordHash = row[2]! as String;
+    final isValid      = BCrypt.checkpw(dni, passwordHash);
+
+    if (!isValid) return null;
+
+    return {
+      'id':    row[0]! as String,
+      'email': row[1]! as String,
+      'role':  'teacher',
+    };
+  }
 }

@@ -2,7 +2,7 @@
 
 import 'dart:io';
 import 'package:dart_frog/dart_frog.dart';
-import 'package:nrs_backend/repositories/teacher.repository.dart';
+import 'package:nrs_backend/repositories/teacher_repository.dart';
 
 Future<Response> onRequest(RequestContext context) async {
   if (context.request.method != HttpMethod.post) {

@@ -3,7 +3,7 @@
 import 'dart:io';
 import 'package:dart_frog/dart_frog.dart';
 import 'package:nrs_backend/models/teacher.dart';
-import 'package:nrs_backend/repositories/teacher.repository.dart';
+import 'package:nrs_backend/repositories/teacher_repository.dart';
 
 Future<Response> onRequest(RequestContext context) async {
   return switch (context.request.method) {
