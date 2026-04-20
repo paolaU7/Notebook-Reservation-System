@@ -74,4 +74,27 @@ class StudentRepository {
     if (result.isEmpty) return null;
     return Student.fromRow(result.first);
   }
+
+  Future<Map<String, dynamic>?> loginForAuth({
+    required String email,
+    required String dni,
+  }) async {
+    final conn = await getConnection();
+    final result = await conn.execute(
+      r'''
+        SELECT id, email
+        FROM students
+        WHERE email = $1 AND dni = $2
+      ''',
+      parameters: [email, dni],
+    );
+
+    if (result.isEmpty) return null;
+
+    return {
+      'id':    result.first[0]! as String,
+      'email': result.first[1]! as String,
+      'role':  'student',
+    };
+  }
 }

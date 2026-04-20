@@ -5,6 +5,7 @@ abstract class DeviceType {
   static const String notebook = 'notebook';
   static const String television = 'television';
 
+
   static const List<String> validTypes = [notebook, television];
 
   static bool isValid(String type) => validTypes.contains(type);

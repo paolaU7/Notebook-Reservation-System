@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:dart_frog/dart_frog.dart';
 import 'package:nrs_backend/auth/jwt_service.dart';
 import 'package:nrs_backend/repositories/admin_repository.dart';
+import 'package:nrs_backend/repositories/student_repository.dart';
 import 'package:nrs_backend/repositories/teacher_repository.dart';
 
 Future<Response> onRequest(RequestContext context) async {
@@ -14,7 +15,7 @@ Future<Response> onRequest(RequestContext context) async {
   final body     = await context.request.json() as Map<String, dynamic>;
   final email    = body['email']?.toString().trim();
   final password = body['password']?.toString().trim();
-  final role     = body['role']?.toString().trim(); // 'admin' | 'teacher'
+  final role     = body['role']?.toString().trim();
 
   if (email == null    || email.isEmpty    ||
       password == null || password.isEmpty ||
@@ -28,21 +29,27 @@ Future<Response> onRequest(RequestContext context) async {
   try {
     Map<String, dynamic>? user;
 
-    if (role == 'admin') {
-      user = await AdminRepository().loginByEmail(
-        email:    email,
-        password: password,
-      );
-    } else if (role == 'teacher') {
-      user = await TeacherRepository().loginForAuth(
-        email: email,
-        dni:   password, // el teacher usa su DNI como password
-      );
-    } else {
-      return Response.json(
-        statusCode: HttpStatus.badRequest,
-        body: {'error': 'role debe ser admin o teacher'},
-      );
+    switch (role) {
+      case 'admin':
+        user = await AdminRepository().loginByEmail(
+          email:    email,
+          password: password,
+        );
+      case 'teacher':
+        user = await TeacherRepository().loginForAuth(
+          email: email,
+          dni:   password,
+        );
+      case 'student':
+        user = await StudentRepository().loginForAuth(
+          email: email,
+          dni:   password,
+        );
+      default:
+        return Response.json(
+          statusCode: HttpStatus.badRequest,
+          body: {'error': 'role debe ser admin, teacher o student'},
+        );
     }
 
     if (user == null) {
