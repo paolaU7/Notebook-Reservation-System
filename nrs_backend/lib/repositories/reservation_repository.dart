@@ -121,4 +121,18 @@ class ReservationRepository {
     );
     return result.map(Reservation.fromRow).toList();
   }
+
+Future<Reservation?> cancel(String id) async {
+  final conn = await getConnection();
+  await conn.execute(
+    r'''
+      UPDATE reservations
+      SET status = 'cancelled'
+      WHERE id = $1
+    ''',
+    parameters: [id],
+  );
+  return findById(id);
+}
+
 }
