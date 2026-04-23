@@ -70,16 +70,28 @@ Future<Response> _createForStudent(
         body: {'error': 'El dispositivo no está disponible'},
       );
     }
+final student = await StudentRepository().findById(user.userId);
+if (student == null) {
+  return Response.json(
+    statusCode: HttpStatus.forbidden,
+    body: {'error': 'Alumno no encontrado'},
+  );
+}
 
-    final student = await StudentRepository().findById(user.userId);
-    if (student == null || !student.isActive) {
-      return Response.json(
-        statusCode: HttpStatus.forbidden,
-        body: {
-          'error':
-              'Tu cuenta no está activa. Realizá tu primer retiro en persona.',
-        },
-      );
+    // ignore: lines_longer_than_80_chars
+    // Si no está activo, solo puede tener una reserva (la primera, para activarse)
+    if (!student.isActive) {
+      final yaHizoReserva = await ReservationRepository()
+          .studentHasAnyReservation(user.userId);
+      if (yaHizoReserva) {
+        return Response.json(
+          statusCode: HttpStatus.forbidden,
+          body: {
+            'error': 'Tu cuenta no está activa. '
+                'Ya tenés una reserva pendiente de retiro presencial.',
+          },
+        );
+      }
     }
 
     final repo = ReservationRepository();
@@ -125,6 +137,7 @@ Future<Response> _createForStudent(
     );
   }
 }
+
 
 // ─── Lógica profesor ─────────────────────────────────────────────────────────
 //

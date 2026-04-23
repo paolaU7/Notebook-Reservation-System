@@ -258,4 +258,20 @@ class ReservationRepository {
     );
     return result.map(Reservation.fromRow).toList();
   }
+
+  /// Devuelve true si el alumno tiene al menos una reserva en cualquier estado
+/// excepto cancelled. Sirve para limitar a los inactivos a una sola reserva.
+Future<bool> studentHasAnyReservation(String studentId) async {
+  final conn = await getConnection();
+  final result = await conn.execute(
+    r'''
+      SELECT id FROM reservations
+      WHERE student_id = $1
+        AND status IN ('pending', 'confirmed', 'completed')
+      LIMIT 1
+    ''',
+    parameters: [studentId],
+  );
+  return result.isNotEmpty;
+}
 }

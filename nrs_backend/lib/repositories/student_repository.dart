@@ -77,7 +77,7 @@ class StudentRepository {
 
   Future<Map<String, dynamic>?> loginForAuth({
     required String email,
-  required String dni,
+    required String dni,
   }) async {
     final conn = await getConnection();
     final result = await conn.execute(
@@ -99,15 +99,23 @@ class StudentRepository {
   }
 
   Future<Student?> findById(String id) async {
-  final conn = await getConnection();
-  final result = await conn.execute(
-    r'''
-      SELECT id, full_name, email, dni, year, division, is_active, created_at
-      FROM students WHERE id = $1
-    ''',
-    parameters: [id],
-  );
-  if (result.isEmpty) return null;
-  return Student.fromRow(result.first);
-}
+    final conn = await getConnection();
+    final result = await conn.execute(
+      r'''
+        SELECT id, full_name, email, dni, year, division, is_active, created_at
+        FROM students WHERE id = $1
+      ''',
+      parameters: [id],
+    );
+    if (result.isEmpty) return null;
+    return Student.fromRow(result.first);
+  }
+
+  Future<void> activate(String id) async {
+    final conn = await getConnection();
+    await conn.execute(
+      r'UPDATE students SET is_active = true WHERE id = $1',
+      parameters: [id],
+    );
+  }
 }
