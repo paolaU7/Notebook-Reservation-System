@@ -15,7 +15,7 @@ Future<Response> onRequest(RequestContext context) async {
     final year = body['year'] as int;
     final division = body['division'] as int;
 
-    if (year < 1 || year > 6) {
+    if (year < 1 || year > 7) {
       return Response.json(
         statusCode: HttpStatus.badRequest,
         body: {'error': 'A�o inv�lido'},

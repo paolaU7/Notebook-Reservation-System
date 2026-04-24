@@ -69,10 +69,10 @@ Future<Response> onRequest(RequestContext context) async {
       final student     = await studentRepo.findById(reservation.studentId!);
       final wasInactive = student != null && !student.isActive;
 
-      // Alumno inactivo y admin no confirmó → devolver warning
+      // Alumno inactivo y admin no confirmó → warning
       if (wasInactive && !confirm) {
         return Response.json(
-          statusCode: HttpStatus.accepted, // 202
+          statusCode: HttpStatus.accepted,
           body: {
             'requires_confirmation': true,
             'message':
@@ -89,20 +89,16 @@ Future<Response> onRequest(RequestContext context) async {
         );
       }
 
-      // Proceder con el checkout
-      final checkout = await CheckoutRepository().create(
-        reservationId: reservationId,
-        adminId:       user.userId,
-        deviceNotes:   deviceNotes,
+      // ignore: flutter_style_todos
+      // Todo en una sola transacción
+      final checkout = await CheckoutRepository().approveCheckout(
+        reservationId:   reservationId,
+        adminId:         user.userId,
+        deviceId:        reservation.deviceId,
+        deviceNotes:     deviceNotes,
+        studentId:       student?.id,
+        activateStudent: wasInactive,
       );
-
-      await DeviceRepository().updateStatus(reservation.deviceId, 'in_use');
-      await reservationRepo.updateStatus(reservationId, 'completed');
-
-      // Activar alumno si era su primer retiro
-      if (wasInactive) {
-        await studentRepo.activate(student.id);
-      }
 
       return Response.json(
         statusCode: HttpStatus.created,
@@ -114,14 +110,14 @@ Future<Response> onRequest(RequestContext context) async {
     }
 
     // ── Reserva de profesor → checkout directo, sin warning ─────────────────
-    final checkout = await CheckoutRepository().create(
-      reservationId: reservationId,
-      adminId:       user.userId,
-      deviceNotes:   deviceNotes,
+    final checkout = await CheckoutRepository().approveCheckout(
+      reservationId:   reservationId,
+      adminId:         user.userId,
+      deviceId:        reservation.deviceId,
+      deviceNotes:     deviceNotes,
+      studentId:       null,
+      activateStudent: false,
     );
-
-    await DeviceRepository().updateStatus(reservation.deviceId, 'in_use');
-    await reservationRepo.updateStatus(reservationId, 'completed');
 
     return Response.json(
       statusCode: HttpStatus.created,
