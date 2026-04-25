@@ -50,16 +50,64 @@ class ReservationRepository {
     required String endTime,
   }) async {
     final conn = await getConnection();
-    final id = Ulid().toString();
+    final id   = Ulid().toString();
 
-    await conn.execute(
-      r'''
-        INSERT INTO reservations
-          (id, booker_type, student_id, device_id, date, start_time, end_time, status)
-        VALUES ($1, 'student', $2, $3, $4, $5, $6, 'pending')
-      ''',
-      parameters: [id, studentId, deviceId, date, startTime, endTime],
-    );
+    await conn.runTx((tx) async {
+      // 1. Lock device para verificar disponibilidad
+      final locked = await tx.execute(
+        r'SELECT id FROM devices WHERE id = $1 FOR UPDATE',
+        parameters: [deviceId],
+      );
+
+      if (locked.isEmpty) {
+        throw Exception('Dispositivo no encontrado');
+      }
+
+      // 2. Verificar conflictos de horario CON LOCK
+      final conflict = await tx.execute(
+        r'''
+          SELECT id FROM reservations
+          WHERE device_id = $1 AND date = $2
+            AND status IN ('pending', 'confirmed')
+            AND (
+              (start_time <= $3 AND end_time > $3) OR
+              (start_time < $4 AND end_time >= $4) OR
+              (start_time >= $3 AND end_time <= $4)
+            )
+          FOR UPDATE
+        ''',
+        parameters: [deviceId, date, startTime, endTime],
+      );
+
+      if (conflict.isNotEmpty) {
+        throw Exception('El dispositivo no está disponible en ese horario');
+      }
+
+      // 3. Verificar que alumno no tenga otra reserva ese día CON LOCK
+      final dailyRes = await tx.execute(
+        r'''
+          SELECT id FROM reservations
+          WHERE student_id = $1 AND date = $2
+            AND status IN ('pending', 'confirmed')
+          FOR UPDATE
+        ''',
+        parameters: [studentId, date],
+      );
+
+      if (dailyRes.isNotEmpty) {
+        throw Exception('El alumno ya tiene una reserva ese día');
+      }
+
+      // 4. Crear reservación (dentro de TX bloqueada)
+      await tx.execute(
+        r'''
+          INSERT INTO reservations
+            (id, booker_type, student_id, device_id, date, start_time, end_time, status)
+          VALUES ($1, 'student', $2, $3, $4, $5, $6, 'pending')
+        ''',
+        parameters: [id, studentId, deviceId, date, startTime, endTime],
+      );
+    });
 
     return (await findById(id))!;
   }
@@ -126,10 +174,10 @@ class ReservationRepository {
     final conn = await getConnection();
     await conn.execute(
       r'''
-      UPDATE reservations
-      SET status = 'cancelled'
-      WHERE id = $1
-    ''',
+        UPDATE reservations
+        SET status = 'cancelled'
+        WHERE id = $1
+      ''',
       parameters: [id],
     );
     return findById(id);
@@ -152,10 +200,8 @@ class ReservationRepository {
     );
   }
 
-  // ─── TEACHERS ───────────────────────────────────────────────────────────
+  // ─── TEACHERS ─────────────────────────────────────────────────────────────
 
-  /// Crea una o más reservas de notebook
-  /// para un profesor.
   Future<List<Reservation>> createForTeacher({
     required String teacherId,
     required List<String> deviceIds,
@@ -164,21 +210,52 @@ class ReservationRepository {
     required String endTime,
   }) async {
     final conn = await getConnection();
-    final ids = <String>[];
+    final ids  = <String>[];
 
-    for (final deviceId in deviceIds) {
-      final id = Ulid().toString();
-      ids.add(id);
+    await conn.runTx((tx) async {
+      for (final deviceId in deviceIds) {
+        final locked = await tx.execute(
+          r'SELECT id FROM devices WHERE id = $1 FOR UPDATE',
+          parameters: [deviceId],
+        );
 
-      await conn.execute(
-        r'''
-        INSERT INTO reservations
-          (id, booker_type, teacher_id, device_id, date, start_time, end_time, status)
-        VALUES ($1, 'teacher', $2, $3, $4, $5, $6, 'pending')
-      ''',
-        parameters: [id, teacherId, deviceId, date, startTime, endTime],
-      );
-    }
+        if (locked.isEmpty) {
+          throw Exception('Dispositivo $deviceId no encontrado');
+        }
+
+        final conflict = await tx.execute(
+          r'''
+            SELECT id FROM reservations
+            WHERE device_id = $1 AND date = $2
+              AND status IN ('pending', 'confirmed')
+              AND (
+                (start_time <= $3 AND end_time > $3) OR
+                (start_time < $4 AND end_time >= $4) OR
+                (start_time >= $3 AND end_time <= $4)
+              )
+          ''',
+          parameters: [deviceId, date, startTime, endTime],
+        );
+
+        if (conflict.isNotEmpty) {
+          throw Exception(
+            'El dispositivo $deviceId no está disponible en ese horario',
+          );
+        }
+
+        final id = Ulid().toString();
+        ids.add(id);
+
+        await tx.execute(
+          r'''
+            INSERT INTO reservations
+              (id, booker_type, teacher_id, device_id, date, start_time, end_time, status)
+            VALUES ($1, 'teacher', $2, $3, $4, $5, $6, 'pending')
+          ''',
+          parameters: [id, teacherId, deviceId, date, startTime, endTime],
+        );
+      }
+    });
 
     final reservations = <Reservation>[];
     for (final id in ids) {
@@ -188,7 +265,6 @@ class ReservationRepository {
     return reservations;
   }
 
-  /// Crea una reserva de TV para un profesor (solo 1 permitida por bloque).
   Future<Reservation> createTvForTeacher({
     required String teacherId,
     required String deviceId,
@@ -197,21 +273,49 @@ class ReservationRepository {
     required String endTime,
   }) async {
     final conn = await getConnection();
-    final id = Ulid().toString();
+    final id   = Ulid().toString();
 
-    await conn.execute(
-      r'''
-      INSERT INTO reservations
-        (id, booker_type, teacher_id, device_id, date, start_time, end_time, status)
-      VALUES ($1, 'teacher', $2, $3, $4, $5, $6, 'pending')
-    ''',
-      parameters: [id, teacherId, deviceId, date, startTime, endTime],
-    );
+    await conn.runTx((tx) async {
+      final locked = await tx.execute(
+        r'SELECT id FROM devices WHERE id = $1 FOR UPDATE',
+        parameters: [deviceId],
+      );
+
+      if (locked.isEmpty) {
+        throw Exception('Dispositivo no encontrado');
+      }
+
+      final conflict = await tx.execute(
+        r'''
+          SELECT id FROM reservations
+          WHERE device_id = $1 AND date = $2
+            AND status IN ('pending', 'confirmed')
+            AND (
+              (start_time <= $3 AND end_time > $3) OR
+              (start_time < $4 AND end_time >= $4) OR
+              (start_time >= $3 AND end_time <= $4)
+            )
+        ''',
+        parameters: [deviceId, date, startTime, endTime],
+      );
+
+      if (conflict.isNotEmpty) {
+        throw Exception('La TV no está disponible en ese horario');
+      }
+
+      await tx.execute(
+        r'''
+          INSERT INTO reservations
+            (id, booker_type, teacher_id, device_id, date, start_time, end_time, status)
+          VALUES ($1, 'teacher', $2, $3, $4, $5, $6, 'pending')
+        ''',
+        parameters: [id, teacherId, deviceId, date, startTime, endTime],
+      );
+    });
 
     return (await findById(id))!;
   }
 
-  /// Verifica si el profesor ya tiene una TV reservada en ese bloque horario.
   Future<bool> teacherHasTvReservationOnDateAndTime({
     required String teacherId,
     required String date,
@@ -221,102 +325,95 @@ class ReservationRepository {
     final conn = await getConnection();
     final result = await conn.execute(
       r'''
-      SELECT r.id FROM reservations r
-      JOIN devices d ON r.device_id = d.id
-      WHERE r.teacher_id = $1
-        AND r.date = $2
-        AND r.status IN ('pending', 'confirmed')
-        AND d.type = 'television'
-        AND (
-          (r.start_time <= $3 AND r.end_time > $3) OR
-          (r.start_time < $4 AND r.end_time >= $4) OR
-          (r.start_time >= $3 AND r.end_time <= $4)
-        )
-    ''',
+        SELECT r.id FROM reservations r
+        JOIN devices d ON r.device_id = d.id
+        WHERE r.teacher_id = $1
+          AND r.date = $2
+          AND r.status IN ('pending', 'confirmed')
+          AND d.type = 'television'
+          AND (
+            (r.start_time <= $3 AND r.end_time > $3) OR
+            (r.start_time < $4 AND r.end_time >= $4) OR
+            (r.start_time >= $3 AND r.end_time <= $4)
+          )
+      ''',
       parameters: [teacherId, date, startTime, endTime],
     );
     return result.isNotEmpty;
   }
 
-  /// Devuelve todas las reservas de un profesor.
   Future<List<Reservation>> getByTeacher(String teacherId) async {
     final conn = await getConnection();
     final result = await conn.execute(
       r'''
-      SELECT
-        r.id, r.booker_type, r.student_id, r.teacher_id, r.device_id,
-        r.date, r.start_time, r.end_time, r.status, r.created_at,
-        s.full_name as student_name,
-        t.full_name as teacher_name
-      FROM reservations r
-      LEFT JOIN students s ON r.student_id = s.id
-      LEFT JOIN teachers t ON r.teacher_id = t.id
-      WHERE r.teacher_id = $1
-      ORDER BY r.date DESC, r.start_time DESC
-    ''',
+        SELECT
+          r.id, r.booker_type, r.student_id, r.teacher_id, r.device_id,
+          r.date, r.start_time, r.end_time, r.status, r.created_at,
+          s.full_name as student_name,
+          t.full_name as teacher_name
+        FROM reservations r
+        LEFT JOIN students s ON r.student_id = s.id
+        LEFT JOIN teachers t ON r.teacher_id = t.id
+        WHERE r.teacher_id = $1
+        ORDER BY r.date DESC, r.start_time DESC
+      ''',
       parameters: [teacherId],
     );
     return result.map(Reservation.fromRow).toList();
   }
 
-  /// Devuelve true si el alumno tiene al menos una reserva en cualquier estado
-/// excepto cancelled. Sirve para limitar a los inactivos a una sola reserva.
-Future<bool> studentHasAnyReservation(String studentId) async {
-  final conn = await getConnection();
-  final result = await conn.execute(
-    r'''
-      SELECT id FROM reservations
-      WHERE student_id = $1
-        AND status IN ('pending', 'confirmed', 'completed')
-      LIMIT 1
-    ''',
-    parameters: [studentId],
-  );
-  return result.isNotEmpty;
-}
-
-  /// Expira las reservas que ya pasaron su fecha y hora.
-  /// Devuelve el número de reservas expiradas.
-  Future<int> expireOverdue() async {
+  Future<bool> studentHasAnyReservation(String studentId) async {
     final conn = await getConnection();
-    final now = DateTime.now();
-    final currentDate = now.toIso8601String().split('T')[0]; // YYYY-MM-DD
-    // ignore: lines_longer_than_80_chars
-    final currentTime = '${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}:00'; // HH:MM:00
+    final result = await conn.execute(
+      r'''
+        SELECT id FROM reservations
+        WHERE student_id = $1
+          AND status IN ('pending', 'confirmed', 'completed')
+        LIMIT 1
+      ''',
+      parameters: [studentId],
+    );
+    return result.isNotEmpty;
+  }
+
+  Future<int> expireOverdue() async {
+    final conn        = await getConnection();
+    final now         = DateTime.now();
+    final currentDate = now.toIso8601String().split('T')[0];
+    final currentTime =
+        '${now.hour.toString().padLeft(2, '0')}:'
+        '${now.minute.toString().padLeft(2, '0')}:00';
 
     final result = await conn.execute(
       r'''
-  
         UPDATE reservations
         SET status = 'expired'
         WHERE status IN ('pending', 'confirmed')
           AND (date < $1 OR (date = $1 AND end_time <= $2))
+          AND id NOT IN (SELECT reservation_id FROM checkouts)
       ''',
       parameters: [currentDate, currentTime],
     );
     return result.affectedRows;
   }
 
-/// Devuelve el total de reservas agrupadas por especialidad.
-/// Ciclo básico (year 1-3) aparece como 'ciclo_basico'.
-Future<List<Map<String, dynamic>>> countBySpecialty() async {
-  final conn = await getConnection();
-  final result = await conn.execute(
-    '''
-      SELECT
-        COALESCE(s.specialty, 'ciclo_basico') AS specialty,
-        COUNT(r.id)::int AS total
-      FROM reservations r
-      JOIN students s ON r.student_id = s.id
-      WHERE r.booker_type = 'student'
-      GROUP BY COALESCE(s.specialty, 'ciclo_basico')
-      ORDER BY total DESC
-    ''',
-  );
-  return result.map((row) => {
-    'specialty': row[0]! as String,
-    'total':     row[1]! as int,
-  }).toList();
-}
-
+  Future<List<Map<String, dynamic>>> countBySpecialty() async {
+    final conn   = await getConnection();
+    final result = await conn.execute(
+      '''
+        SELECT
+          COALESCE(s.specialty, 'ciclo_basico') AS specialty,
+          COUNT(r.id)::int AS total
+        FROM reservations r
+        JOIN students s ON r.student_id = s.id
+        WHERE r.booker_type = 'student'
+        GROUP BY COALESCE(s.specialty, 'ciclo_basico')
+        ORDER BY total DESC
+      ''',
+    );
+    return result.map((row) => {
+      'specialty': row[0]! as String,
+      'total':     row[1]! as int,
+    }).toList();
+  }
 }

@@ -30,7 +30,8 @@ Future<Response> _create(RequestContext context) async {
   );
 }
 
-// ─── Lógica alumno (sin cambios) ─────────────────────────────────────────────
+// ignore: lines_longer_than_80_chars
+// ─── Lógica alumno ────────────────────────────────────────────────────────────
 
 Future<Response> _createForStudent(
   RequestContext context,
@@ -58,20 +59,6 @@ Future<Response> _createForStudent(
   if (timeError != null) return timeError;
 
   try {
-    final device = await DeviceRepository().findById(deviceId);
-    if (device == null) {
-      return Response.json(
-        statusCode: HttpStatus.notFound,
-        body: {'error': 'El dispositivo no existe'},
-      );
-    }
-    if (device.status != 'available') {
-      return Response.json(
-        statusCode: HttpStatus.conflict,
-        body: {'error': 'El dispositivo no está disponible'},
-      );
-    }
-
     final student = await StudentRepository().findById(user.userId);
     if (student == null) {
       return Response.json(
@@ -80,7 +67,6 @@ Future<Response> _createForStudent(
       );
     }
 
-    // Chequear watchlist — bloquea si tiene 3 o más roturas activas
     if (await WatchlistRepository().isBlocked(student.dni)) {
       return Response.json(
         statusCode: HttpStatus.forbidden,
@@ -91,8 +77,6 @@ Future<Response> _createForStudent(
       );
     }
 
-    // ignore: lines_longer_than_80_chars
-    // Si no está activo, solo puede tener una reserva (la primera, para activarse)
     if (!student.isActive) {
       final yaHizoReserva = await ReservationRepository()
           .studentHasAnyReservation(user.userId);
@@ -107,31 +91,9 @@ Future<Response> _createForStudent(
       }
     }
 
-    final repo = ReservationRepository();
-
-    if (await repo.studentHasReservationOnDate(
-      studentId: user.userId,
-      date: date,
-    )) {
-      return Response.json(
-        statusCode: HttpStatus.conflict,
-        body: {'error': 'Ya tenés una reserva para ese día'},
-      );
-    }
-
-    if (await repo.hasConflict(
-      deviceId: deviceId,
-      date: date,
-      startTime: startTime,
-      endTime: endTime,
-    )) {
-      return Response.json(
-        statusCode: HttpStatus.conflict,
-        body: {'error': 'El dispositivo no está disponible en ese horario'},
-      );
-    }
-
-    final reservation = await repo.createForStudent(
+    // Todas las validaciones de device, conflictos y horarios se hacen
+    // dentro de la transacción en createForStudent()
+    final reservation = await ReservationRepository().createForStudent(
       studentId: user.userId,
       deviceId:  deviceId,
       date:      date,
@@ -144,6 +106,24 @@ Future<Response> _createForStudent(
       body: reservation.toJson(),
     );
   } catch (e) {
+    final msg = e.toString().toLowerCase();
+
+    if (msg.contains('no está disponible') ||
+        msg.contains('conflict') ||
+        msg.contains('dispositivo no encontrado')) {
+      return Response.json(
+        statusCode: HttpStatus.conflict,
+        body: {'error': e.toString()},
+      );
+    }
+
+    if (msg.contains('ya tiene una reserva')) {
+      return Response.json(
+        statusCode: HttpStatus.conflict,
+        body: {'error': e.toString()},
+      );
+    }
+
     return Response.json(
       statusCode: HttpStatus.internalServerError,
       body: {'error': 'Error interno: $e'},
@@ -151,7 +131,8 @@ Future<Response> _createForStudent(
   }
 }
 
-// ─── Lógica profesor ─────────────────────────────────────────────────────────
+// ignore: lines_longer_than_80_chars
+// ─── Lógica profesor ──────────────────────────────────────────────────────────
 //
 // Body para notebooks:
 // {
@@ -229,13 +210,10 @@ Future<Response> _createForTeacher(
   final timeError = _validateDateAndTime(reservationDate, startTime, endTime);
   if (timeError != null) return timeError;
 
-  final dbDeviceType = deviceType;
-
   try {
     final deviceRepo = DeviceRepository();
     final repo       = ReservationRepository();
 
-    // Validar cada dispositivo
     for (final deviceId in deviceIds) {
       final device = await deviceRepo.findById(deviceId);
 
@@ -246,7 +224,7 @@ Future<Response> _createForTeacher(
         );
       }
 
-      if (device.type != dbDeviceType) {
+      if (device.type != deviceType) {
         return Response.json(
           statusCode: HttpStatus.badRequest,
           body: {
@@ -261,24 +239,8 @@ Future<Response> _createForTeacher(
           body: {'error': 'El dispositivo $deviceId no está disponible'},
         );
       }
-
-      if (await repo.hasConflict(
-        deviceId: deviceId,
-        date: date,
-        startTime: startTime,
-        endTime: endTime,
-      )) {
-        return Response.json(
-          statusCode: HttpStatus.conflict,
-          body: {
-            'error':
-                'El dispositivo $deviceId no está disponible en ese horario',
-          },
-        );
-      }
     }
 
-    // TV: verificar que el profe no tenga otra TV en ese bloque
     if (deviceType == 'television') {
       if (await repo.teacherHasTvReservationOnDateAndTime(
         teacherId: user.userId,
@@ -306,7 +268,6 @@ Future<Response> _createForTeacher(
       );
     }
 
-    // Notebooks: múltiples
     final reservations = await repo.createForTeacher(
       teacherId: user.userId,
       deviceIds: deviceIds,
@@ -320,6 +281,13 @@ Future<Response> _createForTeacher(
       body: reservations.map((r) => r.toJson()).toList(),
     );
   } catch (e) {
+    final msg = e.toString();
+    if (msg.contains('no está disponible en ese horario')) {
+      return Response.json(
+        statusCode: HttpStatus.conflict,
+        body: {'error': msg.replaceAll('Exception: ', '')},
+      );
+    }
     return Response.json(
       statusCode: HttpStatus.internalServerError,
       body: {'error': 'Error interno: $e'},
