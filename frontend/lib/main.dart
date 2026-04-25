@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'presentation/screens/home_screen.dart';
+import 'presentation/screens/splash_screen.dart';
 import 'presentation/theme/theme_provider.dart';
 
 void main() {
@@ -20,7 +20,7 @@ class NRSApp extends StatelessWidget {
       title: 'NRS - Notebook Reservation System',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.deepSeaTheme,
-      home: const HomeScreen(),
+      home: const SplashScreen(),
     );
   }
 }

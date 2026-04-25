@@ -8,6 +8,7 @@ class Device {
   final String specialty;
   final DeviceStatus status;
   final String? currentUserEmail;
+  final String? statusNotes;
 
   const Device({
     required this.id,
@@ -16,6 +17,7 @@ class Device {
     required this.specialty,
     required this.status,
     this.currentUserEmail,
+    this.statusNotes,
   });
 
   Device copyWith({
@@ -25,6 +27,7 @@ class Device {
     String? specialty,
     DeviceStatus? status,
     String? currentUserEmail,
+    String? statusNotes,
   }) {
     return Device(
       id: id ?? this.id,
@@ -33,6 +36,7 @@ class Device {
       specialty: specialty ?? this.specialty,
       status: status ?? this.status,
       currentUserEmail: currentUserEmail ?? this.currentUserEmail,
+      statusNotes: statusNotes ?? this.statusNotes,
     );
   }
 }

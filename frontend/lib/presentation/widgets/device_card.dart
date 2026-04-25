@@ -4,13 +4,15 @@ import '../theme/theme_provider.dart';
 
 class DeviceCard extends StatelessWidget {
   final Device device;
-  final VoidCallback? onReserve;
+  final void Function(DateTime date, TimeOfDay start, TimeOfDay end)? onReserve;
+  final VoidCallback? onCancel;
 
   const DeviceCard({
-    Key? key,
+    super.key,
     required this.device,
     this.onReserve,
-  }) : super(key: key);
+    this.onCancel,
+  });
 
   Future<void> _selectDateTime(BuildContext context) async {
     final DateTime? pickedDate = await showDatePicker(
@@ -20,16 +22,25 @@ class DeviceCard extends StatelessWidget {
       lastDate: DateTime.now().add(const Duration(days: 30)),
     );
     if (pickedDate != null) {
-      final TimeOfDay? pickedTime = await showTimePicker(
+      if (!context.mounted) return;
+      final TimeOfDay? pickedStartTime = await showTimePicker(
         context: context,
-        initialTime: TimeOfDay.now(),
+        initialTime: const TimeOfDay(hour: 8, minute: 0),
+        helpText: 'HORA DE INICIO',
       );
-      if (pickedTime != null && onReserve != null) {
-        onReserve!();
-        if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Reserva agendada para ${pickedDate.day}/${pickedDate.month}/${pickedDate.year} a las ${pickedTime.format(context)}')),
-          );
+      if (pickedStartTime != null && context.mounted) {
+        final TimeOfDay? pickedEndTime = await showTimePicker(
+          context: context,
+          initialTime: const TimeOfDay(hour: 10, minute: 0),
+          helpText: 'HORA DE FIN',
+        );
+        if (pickedEndTime != null && onReserve != null) {
+          onReserve!(pickedDate, pickedStartTime, pickedEndTime);
+          if (context.mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('Reserva agendada para ${pickedDate.day}/${pickedDate.month}/${pickedDate.year}')),
+            );
+          }
         }
       }
     }
@@ -51,7 +62,7 @@ class DeviceCard extends StatelessWidget {
             Icon(
               device.model == DeviceModel.tv ? Icons.tv : Icons.laptop_chromebook,
               size: 32,
-              color: isActive ? AppTheme.accentColor : AppTheme.textColor.withOpacity(0.5),
+              color: isActive ? AppTheme.accentColor : AppTheme.textColor.withValues(alpha: 0.5),
             ),
             const SizedBox(height: 8),
             Text(
@@ -72,7 +83,7 @@ class DeviceCard extends StatelessWidget {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
               decoration: BoxDecoration(
-                color: _getStatusColor(device.status).withOpacity(0.2),
+                color: _getStatusColor(device.status).withValues(alpha: 0.2),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Text(
@@ -98,7 +109,23 @@ class DeviceCard extends StatelessWidget {
                   child: const Text('Reservar', style: TextStyle(fontSize: 12)),
                 ),
               ),
-            ]
+            ],
+            if (isActive && onCancel != null) ...[
+              const SizedBox(height: 8),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton(
+                  onPressed: onCancel,
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: Colors.redAccent,
+                    side: const BorderSide(color: Colors.redAccent),
+                    padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 0),
+                    minimumSize: const Size(0, 28),
+                  ),
+                  child: const Text('Cancelar', style: TextStyle(fontSize: 12)),
+                ),
+              ),
+            ],
           ],
         ),
       ),
@@ -134,7 +161,7 @@ class DeviceCard extends StatelessWidget {
       case DeviceStatus.available:
         return 'Disponible';
       case DeviceStatus.inUse:
-        return 'En Uso';
+        return 'En Uso / Reservado';
       case DeviceStatus.maintenance:
         return 'Mantenimiento';
       case DeviceStatus.outOfService:

@@ -1,90 +1,103 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:dio/dio.dart';
 import '../../domain/entities/device.dart';
+import '../../infrastructure/api_client.dart';
 
 class NotebookListNotifier extends AsyncNotifier<List<Device>> {
   @override
   Future<List<Device>> build() async {
-    return _generateInventory();
+    return _fetchDevices();
   }
 
-  List<Device> _generateInventory() {
-    final List<Device> inventory = [];
-    
-    // 20 unidades "Conectar Igualdad"
-    for (int i = 1; i <= 20; i++) {
-      inventory.add(
-        Device(
-          id: 'CI-${i.toString().padLeft(2, '0')}',
-          model: DeviceModel.conectarIgualdad,
-          type: 'Notebook',
-          specialty: 'General',
-          status: DeviceStatus.available,
+  Future<List<Device>> _fetchDevices() async {
+    try {
+      // The backend /devices endpoint currently requires the admin token.
+      final response = await ApiClient.instance.get(
+        '/devices',
+        options: Options(
+          headers: {
+            'Authorization': 'Bearer admin-secret-token',
+          },
         ),
       );
-    }
 
-    // 4 unidades "CX"
-    for (int i = 1; i <= 4; i++) {
-      inventory.add(
-        Device(
-          id: 'CX-${i.toString().padLeft(2, '0')}',
-          model: DeviceModel.cx,
-          type: 'Notebook',
-          specialty: 'Diseño/Programación',
-          status: DeviceStatus.available,
-        ),
-      );
+      final List<dynamic> data = response.data['data'];
+      return data.map((json) {
+        return Device(
+          id: json['id'],
+          model: _mapModelString(json['type']),
+          type: json['type'] == 'television' ? 'Televisor' : 'Notebook',
+          specialty: 'General', // Backend doesn't provide specialty yet
+          status: _mapStatusString(json['status']),
+          statusNotes: json['status_notes'],
+        );
+      }).toList();
+    } catch (e) {
+      if (e is DioException) {
+        throw Exception(e.response?.data['error'] ?? e.message);
+      }
+      throw Exception('Error al cargar dispositivos: $e');
     }
+  }
 
-    // 4 unidades "TV"
-    for (int i = 1; i <= 4; i++) {
-      inventory.add(
-        Device(
-          id: 'TV-${i.toString().padLeft(2, '0')}',
-          model: DeviceModel.tv,
-          type: 'Televisor',
-          specialty: 'Uso Docente',
-          status: DeviceStatus.available,
-        ),
-      );
+  DeviceModel _mapModelString(String type) {
+    if (type == 'television') return DeviceModel.tv;
+    return DeviceModel.conectarIgualdad; // Default mapping
+  }
+
+  DeviceStatus _mapStatusString(String status) {
+    switch (status) {
+      case 'in_use':
+        return DeviceStatus.inUse;
+      case 'out_of_service':
+        return DeviceStatus.outOfService;
+      case 'maintenance':
+        return DeviceStatus.maintenance;
+      default:
+        return DeviceStatus.available;
     }
-
-    return inventory;
   }
 
   Future<void> updateDeviceStatus(String id, DeviceStatus status, {String? userEmail}) async {
+    // This function might need to be removed or adapted since backend reservations handle status
+    // For now, let's refresh the list to sync with backend
+    ref.invalidateSelf();
+  }
+
+  Future<void> cancelReservation(String reservationId) async {
     state = const AsyncValue.loading();
-    state = await AsyncValue.guard(() async {
-      final currentList = state.value ?? [];
-      return currentList.map((device) {
-        if (device.id == id) {
-          return device.copyWith(status: status, currentUserEmail: userEmail);
-        }
-        return device;
-      }).toList();
-    });
+    try {
+      await ApiClient.instance.post('/reservations/$reservationId/cancel');
+      ref.invalidateSelf();
+    } catch (e) {
+      state = AsyncValue.error('Error al cancelar reserva: $e', StackTrace.current);
+    }
+  }
+
+  Future<void> reserveDeviceForStudent(String deviceId, DateTime date, String startTime, String endTime) async {
+    state = const AsyncValue.loading();
+    try {
+      await ApiClient.instance.post(
+        '/reservations',
+        data: {
+          'device_id': deviceId,
+          'date': "${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}",
+          'start_time': startTime,
+          'end_time': endTime,
+        },
+      );
+      ref.invalidateSelf();
+    } catch (e) {
+      if (e is DioException) {
+        state = AsyncValue.error(e.response?.data['error'] ?? e.message ?? 'Error', StackTrace.current);
+      } else {
+        state = AsyncValue.error(e.toString(), StackTrace.current);
+      }
+    }
   }
 
   Future<void> returnDevice(String id) async {
-    state = const AsyncValue.loading();
-    state = await AsyncValue.guard(() async {
-      final currentList = state.value ?? [];
-      return currentList.map((device) {
-        if (device.id == id) {
-          // No hay copyWith que reciba null explícitamente y borre un valor no null,
-          // así que creamos un nuevo objeto basado en el actual pero con currentUserEmail nulo.
-          return Device(
-            id: device.id,
-            model: device.model,
-            type: device.type,
-            specialty: device.specialty,
-            status: DeviceStatus.available,
-            currentUserEmail: null,
-          );
-        }
-        return device;
-      }).toList();
-    });
+    ref.invalidateSelf();
   }
 }
 
