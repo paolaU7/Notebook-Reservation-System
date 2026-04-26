@@ -1,5 +1,6 @@
 // lib/presentation/theme/theme_provider.dart
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 class AppTheme {
   // Colores base (existentes)
@@ -73,4 +74,74 @@ class AppTheme {
       ),
     );
   }
+
+  static ThemeData get darkTheme {
+    // Professional Dark Blue Palette
+    const Color darkBg = Color(0xFF0F172A);      // Slate 900
+    const Color darkSurface = Color(0xFF1E293B); // Slate 800
+    const Color darkPrimary = Color(0xFF3B82F6); // Blue 500
+    const Color darkSecondary = Color(0xFF60A5FA); // Blue 400
+    const Color textPrimary = Color(0xFFF8FAFC); // Slate 50
+    const Color textSecondary = Color(0xFFCBD5E1); // Slate 300
+
+    return ThemeData(
+      brightness: Brightness.dark,
+      scaffoldBackgroundColor: darkBg,
+      primaryColor: darkPrimary,
+      colorScheme: const ColorScheme.dark(
+        primary: darkPrimary,
+        secondary: darkSecondary,
+        surface: darkSurface,
+        onPrimary: Colors.white,
+        onSurface: textPrimary,
+      ),
+      textTheme: const TextTheme(
+        bodyLarge:  TextStyle(color: textSecondary),
+        bodyMedium: TextStyle(color: textSecondary),
+        titleLarge: TextStyle(color: textPrimary, fontWeight: FontWeight.bold),
+      ),
+      cardTheme: CardThemeData(
+        color: darkSurface,
+        shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12)),
+        elevation: 4,
+        shadowColor: Colors.black.withOpacity(0.3),
+      ),
+      appBarTheme: const AppBarTheme(
+        backgroundColor: darkSurface,
+        elevation: 0,
+        iconTheme: IconThemeData(color: textPrimary),
+        titleTextStyle: TextStyle(
+            color: textPrimary,
+            fontSize: 20,
+            fontWeight: FontWeight.bold),
+      ),
+      elevatedButtonTheme: ElevatedButtonThemeData(
+        style: ElevatedButton.styleFrom(
+          backgroundColor: darkPrimary,
+          foregroundColor: Colors.white,
+          elevation: 2,
+          shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(8)),
+        ),
+      ),
+      inputDecorationTheme: InputDecorationTheme(
+        filled: true,
+        fillColor: darkBg,
+        border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(8),
+            borderSide: const BorderSide(color: darkSurface)),
+        enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(8),
+            borderSide: const BorderSide(color: Color(0xFF334155))), // Slate 700
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(8),
+          borderSide: const BorderSide(color: darkPrimary, width: 2),
+        ),
+        labelStyle: const TextStyle(color: textSecondary),
+      ),
+    );
+  }
 }
+
+final themeModeProvider = StateProvider<ThemeMode>((ref) => ThemeMode.light);

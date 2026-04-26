@@ -13,6 +13,7 @@ import '../../domain/entities/user.dart';
 import '../widgets/device_card.dart';
 import '../theme/theme_provider.dart';
 import 'admin_screen.dart';
+import 'my_reservations_screen.dart';
 
 final _filterTypeProvider = StateProvider<String>((ref) => 'Todos');
 final _filterAvailableProvider = StateProvider<bool>((ref) => false);
@@ -111,25 +112,65 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 onSelected: (v) {
                   if (v == 'logout') {
                     ref.read(authProvider.notifier).logout();
+                  } else if (v == 'reservations') {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => const MyReservationsScreen(),
+                      ),
+                    );
+                  } else if (v == 'theme') {
+                    final current = ref.read(themeModeProvider);
+                    ref.read(themeModeProvider.notifier).state = 
+                        current == ThemeMode.dark ? ThemeMode.light : ThemeMode.dark;
                   }
                 },
-                itemBuilder: (menuCtx) => [
-                  PopupMenuItem(
-                    enabled: false,
-                    child: Text(
-                      user.email,
-                      style: const TextStyle(fontWeight: FontWeight.w600),
+                itemBuilder: (menuCtx) {
+                  final isDark = ref.read(themeModeProvider) == ThemeMode.dark;
+                  return [
+                    PopupMenuItem(
+                      enabled: false,
+                      child: Text(
+                        user.email,
+                        style: const TextStyle(fontWeight: FontWeight.w600),
+                      ),
                     ),
-                  ),
-                  const PopupMenuDivider(),
-                  const PopupMenuItem(
-                    value: 'logout',
-                    child: Text(
-                      'Cerrar Sesión',
-                      style: TextStyle(color: Colors.redAccent),
+                    const PopupMenuDivider(),
+                    const PopupMenuItem(
+                      value: 'reservations',
+                      child: Row(
+                        children: [
+                          Icon(Icons.calendar_month, color: AppTheme.textDark),
+                          SizedBox(width: 8),
+                          Text('Mis Reservas', style: TextStyle(color: AppTheme.textDark)),
+                        ],
+                      ),
                     ),
-                  ),
-                ],
+                    PopupMenuItem(
+                      value: 'theme',
+                      child: Row(
+                        children: [
+                          Icon(isDark ? Icons.dark_mode : Icons.light_mode, color: AppTheme.textDark),
+                          const SizedBox(width: 8),
+                          Text(isDark ? 'Modo Claro' : 'Modo Oscuro', style: const TextStyle(color: AppTheme.textDark)),
+                        ],
+                      ),
+                    ),
+                    const PopupMenuDivider(),
+                    const PopupMenuItem(
+                      value: 'logout',
+                      child: Row(
+                        children: [
+                          Icon(Icons.logout, color: Colors.redAccent),
+                          SizedBox(width: 8),
+                          Text(
+                            'Cerrar Sesión',
+                            style: TextStyle(color: Colors.redAccent),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ];
+                },
               ),
             ],
           ),

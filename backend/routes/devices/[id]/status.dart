@@ -45,6 +45,18 @@ Future<Response> onRequest(RequestContext context, String id) async {
     }
 
     final deviceRepository = DeviceRepository();
+    
+    // Validar que no se ponga en mantenimiento si está en uso
+    if (newStatus == 'out_of_service') {
+      final currentDevice = await deviceRepository.findById(id);
+      if (currentDevice != null && currentDevice.status == 'in_use') {
+        return Response.json(
+          statusCode: HttpStatus.conflict,
+          body: {'error': 'No se puede poner en mantenimiento un dispositivo que está en uso'},
+        );
+      }
+    }
+
     final device = await deviceRepository.updateStatus(id, newStatus);
 
     if (device == null) {

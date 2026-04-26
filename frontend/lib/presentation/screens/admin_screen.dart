@@ -329,12 +329,6 @@ class _DevicesTab extends ConsumerWidget {
                           title: 'Editar',
                           subtitle: 'Modificar número o notas.',
                         ),
-                        _LegendItem(
-                          icon: Icons.delete,
-                          color: Colors.red,
-                          title: 'Eliminar',
-                          subtitle: 'Eliminar dispositivo.',
-                        ),
                       ],
                     ),
                   ),
@@ -477,14 +471,6 @@ class _ActionButtons extends ConsumerWidget {
             icon: Icons.edit,
             color: AppTheme.primaryBlue,
             onPressed: () => _showEditDeviceDialog(context, ref),
-          ),
-        ),
-        Tooltip(
-          message: 'Eliminar dispositivo',
-          child: _ActionIconButton(
-            icon: Icons.delete,
-            color: Colors.red,
-            onPressed: () => _showDeleteConfirmation(context, ref),
           ),
         ),
       ],

@@ -1,5 +1,5 @@
 import 'package:dart_frog/dart_frog.dart';
-import 'package:nrs_backend/database.dart';
+import 'package:nrs_backend/database/connection.dart';
 
 Future<Response> onRequest(RequestContext context) async {
   return switch (context.request.method) {
