@@ -193,10 +193,10 @@ class NotebookListNotifier extends AsyncNotifier<List<Device>> {
     }
   }
 
-  // ─── POST /reservations/{id}/cancel ──────────────────────────────────────────
+  // ─── PATCH /reservations/{id}/cancel ─────────────────────────────────────────
   Future<void> cancelReservation(String reservationId) async {
     try {
-      await ApiClient.instance.post('/reservations/$reservationId/cancel');
+      await ApiClient.instance.patch('/reservations/$reservationId/cancel');
       ref.invalidateSelf();
     } on DioException catch (e) {
       throw Exception(
