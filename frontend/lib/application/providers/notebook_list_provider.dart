@@ -58,7 +58,7 @@ class NotebookListNotifier extends AsyncNotifier<List<Device>> {
         data: {
           'number': number,
           'type': type,
-          if (statusNotes case final notes?) 'status_notes': notes,
+          'status_notes': ?statusNotes,
         },
       );
       ref.invalidateSelf();
@@ -82,8 +82,8 @@ class NotebookListNotifier extends AsyncNotifier<List<Device>> {
       final res = await ApiClient.instance.put(
         '/devices/$id',
         data: {
-          if (number case final n?) 'number': n,
-          if (statusNotes case final notes?) 'status_notes': notes,
+          'number': ?number,
+          'status_notes': ?statusNotes,
         },
       );
       ref.invalidateSelf();
@@ -247,7 +247,7 @@ class NotebookListNotifier extends AsyncNotifier<List<Device>> {
         '/checkouts',
         data: {
           'reservation_id': reservationId,
-          if (deviceNotes case final notes?) 'device_notes': notes,
+          'device_notes': ?deviceNotes,
           'confirm': confirm,
         },
       );
@@ -274,10 +274,9 @@ class NotebookListNotifier extends AsyncNotifier<List<Device>> {
         '/returns',
         data: {
           'checkout_id': checkoutId,
-          if (deviceNotes case final notes?) 'device_notes': notes,
+          'device_notes': ?deviceNotes,
           'has_damage': hasDamage,
-          if (hasDamage && damageDescription != null)
-            'damage_description': damageDescription,
+          if (hasDamage) 'damage_description': ?damageDescription,
         },
       );
       ref.invalidateSelf();

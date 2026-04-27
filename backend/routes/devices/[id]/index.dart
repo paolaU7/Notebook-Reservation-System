@@ -92,12 +92,11 @@ Future<Response> _handleDelete(String id) async {
       );
     });
 
+    final msg = 'Dispositivo ${device.type} N°${device.number} '
+        'eliminado correctamente. '
+        'Las reservas activas fueron canceladas.';
     return Response.json(
-      body: {
-        'message':
-            'Dispositivo ${device.type} N°${device.number} eliminado correctamente. '
-            'Las reservas activas fueron canceladas.',
-      },
+      body: {'message': msg},
     );
   } catch (e) {
     return Response.json(

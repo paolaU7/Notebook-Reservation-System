@@ -167,23 +167,23 @@ class ReservationRepository {
     );
 
     return result.map((row) {
-      final date = row[7] as DateTime;
-      final createdAt = row[11] as DateTime;
+      final date = row[7]! as DateTime;
+      final createdAt = row[11]! as DateTime;
       final checkedOutAt = row[16] as DateTime?;
       final returnedAt = row[18] as DateTime?;
 
       return <String, dynamic>{
-        'id': row[0] as String,
-        'booker_type': row[1] as String,
+        'id': row[0]! as String,
+        'booker_type': row[1]! as String,
         'student_id': row[2] as String?,
         'teacher_id': row[3] as String?,
-        'device_id': row[4] as String,
+        'device_id': row[4]! as String,
         'device_number': row[5] as String?,
         'device_type': row[6] as String?,
         'date': date.toIso8601String().substring(0, 10),
-        'start_time': _timeToString(row[8] as Time),
-        'end_time': _timeToString(row[9] as Time),
-        'status': row[10] as String,
+        'start_time': _timeToString(row[8]! as Time),
+        'end_time': _timeToString(row[9]! as Time),
+        'status': row[10]! as String,
         'created_at': createdAt.toIso8601String(),
         'student_name': row[12] as String?,
         'student_specialty': row[13] as String?,
@@ -453,7 +453,7 @@ class ReservationRepository {
     final conn = await getConnection();
 
     final result = await conn.execute(
-      r'''
+      '''
         UPDATE reservations
         SET status = 'expired'
         WHERE status IN ('pending', 'confirmed')

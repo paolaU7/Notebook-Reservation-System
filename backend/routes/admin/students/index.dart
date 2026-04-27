@@ -2,8 +2,8 @@
 
 import 'dart:io';
 import 'package:dart_frog/dart_frog.dart';
-import 'package:nrs_backend/middleware/admin_auth.dart';
 import 'package:nrs_backend/database/connection.dart';
+import 'package:nrs_backend/middleware/admin_auth.dart';
 import 'package:nrs_backend/models/student.dart';
 
 Handler middleware(Handler handler) {
@@ -37,8 +37,8 @@ Future<Response> _getAll() async {
       final student = Student.fromRow(row.sublist(0, 9));
       return {
         ...student.toJson(),
-        'damage_count':     row[9] as int,
-        'watchlist_active': row[10] as bool,
+        'damage_count':     row[9]! as int,
+        'watchlist_active': row[10]! as bool,
       };
     }).toList();
 
@@ -49,4 +49,4 @@ Future<Response> _getAll() async {
       body: {'error': 'Error interno: $e'},
     );
   }
-}
+}
