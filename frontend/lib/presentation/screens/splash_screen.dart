@@ -64,8 +64,8 @@ class _SplashScreenState extends State<SplashScreen>
       Navigator.of(context).pushReplacement(
         PageRouteBuilder(
           transitionDuration: const Duration(milliseconds: 600),
-          pageBuilder: (_, __, ___) => const HomeScreen(),
-          transitionsBuilder: (_, animation, __, child) {
+          pageBuilder: (_, _, _) => const HomeScreen(),
+          transitionsBuilder: (_, animation, _, child) {
             return FadeTransition(
               opacity: CurvedAnimation(
                 parent: animation,
@@ -154,7 +154,7 @@ class _SplashScreenState extends State<SplashScreen>
                                 width: 160,
                                 height: 160,
                                 fit: BoxFit.cover,
-                                errorBuilder: (_, __, ___) => const Icon(
+                                errorBuilder: (_, _, _) => const Icon(
                                   Icons.school_rounded,
                                   size: 120,
                                   color: Color(0xFF00F2FF),

@@ -94,8 +94,8 @@ Future<Response> _handleDelete(String id) async {
 
     return Response.json(
       body: {
-        'message':
-            'Dispositivo ${device.type} N°${device.number} eliminado correctamente. '
+        'message': 'Dispositivo ${device.type} N°${device.number} '
+            'eliminado correctamente. '
             'Las reservas activas fueron canceladas.',
       },
     );

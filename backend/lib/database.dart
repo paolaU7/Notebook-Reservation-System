@@ -1,9 +1,10 @@
-import 'package:postgres/postgres.dart';
 import 'package:nrs_backend/config/env.dart';
+import 'package:postgres/postgres.dart';
 
 Connection? _connection;
 
-/// Parses a PostgreSQL connection string (DATABASE_URL) and returns connection parameters.
+/// Parses a PostgreSQL connection string (DATABASE_URL) and returns
+/// connection parameters.
 /// Supports format: postgresql://user:password@host:port/database
 Map<String, dynamic> _parseConnectionUrl(String url) {
   final uri = Uri.parse(url);

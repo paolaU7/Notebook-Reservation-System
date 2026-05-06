@@ -14,7 +14,8 @@ int get jwtExpiryHours {
   return int.tryParse(Platform.environment['JWT_EXPIRY_HOURS'] ?? '8') ?? 8;
 }
 
-/// Returns the database connection string from DATABASE_URL environment variable.
+/// Returns the database connection string from DATABASE_URL
+/// environment variable.
 /// Falls back to local development URL if not set.
 String get databaseUrl {
   return Platform.environment['DATABASE_URL'] ??

@@ -569,6 +569,7 @@ class ReservationReviewDialog extends StatelessWidget {
   final String roleLabel;
 
   const ReservationReviewDialog({
+    super.key,
     required this.devices,
     required this.date,
     required this.startTime,
